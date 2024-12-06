@@ -32,8 +32,10 @@ const ChatInterface = ({ preset, onClose }) => {
 
   const sendToClaude = async (message) => {
     try {
+      const serverUrl = `${process.env.REACT_APP_SERVER_URL}/chat`;
+      console.log('Attempting to reach server at:', serverUrl);  // Add this line
       console.log('Sending message to server:', { message, preset });
-      const response = await fetch('/chat', {
+      const response = await fetch(serverUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
