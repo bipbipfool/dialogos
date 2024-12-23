@@ -5,10 +5,9 @@ import _ from 'lodash';
 const SourcePage = () => {
   const [selectedDepth, setSelectedDepth] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('recent'); // 'recent', 'rating', 'depth'
+  const [sortBy, setSortBy] = useState('recent');
 
-  // Sample conversation data - would come from API in production
-  const conversations = [
+  const conversations = useMemo(() => [
     {
       id: 1,
       title: "The Ancient Conversation: Consciousness as First Principle",
@@ -51,31 +50,27 @@ const SourcePage = () => {
       branches: 4,
       tags: ['physics', 'information', 'entropy']
     }
-  ];
+  ], []);
 
-  const depthLevels = [
+  const depthLevels = useMemo(() => [
     { level: 5, name: "Foundation", color: "indigo" },
     { level: 4, name: "Integration", color: "purple" },
     { level: 3, name: "Application", color: "blue" },
     { level: 2, name: "Expression", color: "green" },
     { level: 1, name: "Introduction", color: "teal" }
-  ];
+  ], []);
 
-  // Calculate average rating for sorting
   const getAverageRating = (metrics) => {
     return (metrics.head + metrics.heart + metrics.gut) / 3;
   };
 
-  // Filter and sort conversations
   const filteredConversations = useMemo(() => {
     let result = [...conversations];
 
-    // Apply depth filter
     if (selectedDepth) {
       result = result.filter(conv => conv.depth === selectedDepth);
     }
 
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(conv => 
@@ -85,7 +80,6 @@ const SourcePage = () => {
       );
     }
 
-    // Apply sorting
     switch (sortBy) {
       case 'recent':
         result = _.orderBy(result, ['timestamp'], ['desc']);
@@ -130,7 +124,6 @@ const SourcePage = () => {
           of exploration.
         </p>
         
-        {/* Search and Sort Controls */}
         <div className="flex gap-4 mb-6">
           <div className="flex-1 relative">
             <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -153,9 +146,8 @@ const SourcePage = () => {
           </select>
         </div>
 
-        {/* Depth Level Selector */}
         <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
-          {depthLevels.map(({ level, name, color }) => (
+          {depthLevels.map(({ level, name }) => (
             <button
               key={level}
               onClick={() => setSelectedDepth(selectedDepth === level ? null : level)}
@@ -172,14 +164,12 @@ const SourcePage = () => {
         </div>
       </div>
 
-      {/* Results Summary */}
       <div className="text-sm text-gray-500 mb-4">
         Showing {filteredConversations.length} conversations
         {selectedDepth ? ` at ${depthLevels.find(d => d.level === selectedDepth).name} level` : ''}
         {searchQuery ? ` matching "${searchQuery}"` : ''}
       </div>
 
-      {/* Conversation Cards */}
       <div className="space-y-4">
         {filteredConversations.map(conversation => (
           <div 
