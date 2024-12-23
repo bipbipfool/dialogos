@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Card } from '@/components/ui/card';
-import { Layers, Brain, Heart, Activity, Search, SortDesc } from 'lucide-react';
+import { Layers, Brain, Heart, Activity, Search } from 'lucide-react';
 import _ from 'lodash';
 
 const SourcePage = () => {
@@ -97,6 +96,8 @@ const SourcePage = () => {
       case 'depth':
         result = _.orderBy(result, ['depth'], ['desc']);
         break;
+      default:
+        break;
     }
 
     return result;
@@ -160,8 +161,8 @@ const SourcePage = () => {
               onClick={() => setSelectedDepth(selectedDepth === level ? null : level)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all whitespace-nowrap
                 ${selectedDepth === level 
-                  ? `bg-${color}-500 text-white` 
-                  : `bg-${color}-50 text-${color}-700 hover:bg-${color}-100`
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
             >
               <Layers size={16} />
@@ -181,9 +182,9 @@ const SourcePage = () => {
       {/* Conversation Cards */}
       <div className="space-y-4">
         {filteredConversations.map(conversation => (
-          <Card 
+          <div 
             key={conversation.id} 
-            className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer"
             onClick={() => {/* Handle navigation to conversation */}}
           >
             <div className="flex justify-between items-start mb-4">
@@ -214,7 +215,7 @@ const SourcePage = () => {
                 </span>
               ))}
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     </div>
