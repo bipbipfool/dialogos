@@ -1,6 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { Brain, Heart, Activity, ThumbsUp, Heart as HeartIcon, Smile, Angry, MessageSquare, Tag, HelpCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Brain, Heart, Activity, ThumbsUp, Heart as HeartIcon, Smile, 
+         Angry, MessageSquare, Tag, HelpCircle, MessageCircle } from 'lucide-react';
 import { seedConversation } from '../data/seedConversation';
+import { saveInteraction, getMessageInteractions } from '../services/api';
+import { v4 as uuidv4 } from 'uuid';
 
 const SeedConversation = () => {
   const [selectedText, setSelectedText] = useState('');
@@ -8,7 +11,26 @@ const SeedConversation = () => {
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [responseType, setResponseType] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [messageInteractions, setMessageInteractions] = useState({});
   const conversationRef = useRef(null);
+
+  // Fetch interactions for each message
+  useEffect(() => {
+    const fetchInteractions = async () => {
+      const allInteractions = {};
+      for (const message of seedConversation.messages) {
+        try {
+          const interactions = await getMessageInteractions(message.id);
+          allInteractions[message.id] = interactions;
+        } catch (error) {
+          console.error(`Error fetching interactions for message ${message.id}:`, error);
+        }
+      }
+      setMessageInteractions(allInteractions);
+    };
+
+    fetchInteractions();
+  }, []);
 
   const handleTextSelection = (messageId) => {
     const selection = window.getSelection();
@@ -38,21 +60,56 @@ const SeedConversation = () => {
 
   const ResponseModal = () => {
     const [response, setResponse] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     if (!showResponseModal) return null;
 
     const handleSubmit = async () => {
-      // Here we would send to the API
-      console.log('Responding to:', selectedText);
-      console.log('Response type:', responseType);
-      console.log('User response:', response);
-      console.log('Original message ID:', highlightedMessageId);
+      if (!response.trim() || isSubmitting) return;
       
-      // Reset everything after submitting
-      setResponse('');
-      setShowResponseModal(false);
-      setResponseType(null);
-      setSelectedText('');
+      setIsSubmitting(true);
+      try {
+        const interactionData = {
+          id: uuidv4(),
+          type: responseType,
+          messageId: highlightedMessageId,
+          selectedText,
+          selectionContext: {
+            beforeText: '', // Could add more context here
+            afterText: ''
+          },
+          response: {
+            content: response,
+            metrics: {
+              head: 3.5,
+              heart: 3.5,
+              gut: 3.5
+            }
+          }
+        };
+
+        const savedInteraction = await saveInteraction(interactionData);
+        
+        // Update local state with new interaction
+        setMessageInteractions(prev => ({
+          ...prev,
+          [highlightedMessageId]: [
+            ...(prev[highlightedMessageId] || []),
+            savedInteraction
+          ]
+        }));
+
+        // Reset form
+        setResponse('');
+        setShowResponseModal(false);
+        setResponseType(null);
+        setSelectedText('');
+      } catch (error) {
+        console.error('Error submitting response:', error);
+        // Could add error message display here
+      } finally {
+        setIsSubmitting(false);
+      }
     };
 
     return (
@@ -61,7 +118,9 @@ const SeedConversation = () => {
           <div className="mb-4">
             <div className="text-sm text-gray-500 mb-2">Responding to:</div>
             <div className="bg-gray-50 p-3 rounded-lg mb-4">{selectedText}</div>
-            <div className="text-sm text-gray-500 mb-2">Your {responseType === 'question' ? 'question' : 'response'}:</div>
+            <div className="text-sm text-gray-500 mb-2">
+              Your {responseType === 'question' ? 'question' : 'response'}:
+            </div>
             <textarea
               value={response}
               onChange={(e) => setResponse(e.target.value)}
@@ -69,20 +128,27 @@ const SeedConversation = () => {
               placeholder={responseType === 'question' 
                 ? "What would you like to understand better about this part?"
                 : "Share your thoughts on this selection..."}
+              disabled={isSubmitting}
             />
           </div>
           <div className="flex justify-end gap-3">
             <button
               onClick={() => setShowResponseModal(false)}
               className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={isSubmitting}
+              className={`px-4 py-2 rounded-lg ${
+                isSubmitting
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
             >
-              Submit
+              {isSubmitting ? 'Submitting...' : 'Submit'}
             </button>
           </div>
         </div>
@@ -107,11 +173,6 @@ const SeedConversation = () => {
       { icon: Activity, label: 'Gut', color: 'text-green-500' }
     ];
 
-    const handleClick = (reaction) => {
-      setResponseType(reaction.type || 'reaction');
-      handleReactionClick(reaction.type || 'reaction');
-    };
-
     return (
       <div 
         className="absolute bg-white shadow-lg rounded-lg p-2 flex gap-2 z-50 border"
@@ -123,7 +184,7 @@ const SeedConversation = () => {
               key={label}
               className="p-1 hover:bg-gray-100 rounded"
               title={label}
-              onClick={() => handleClick({ type })}
+              onClick={() => handleReactionClick(type || 'reaction')}
             >
               <Icon size={16} />
             </button>
@@ -135,7 +196,7 @@ const SeedConversation = () => {
               key={label}
               className={`p-1 hover:bg-gray-100 rounded ${color}`}
               title={`Rate ${label}`}
-              onClick={() => handleClick({ type: 'rating', metric: label })}
+              onClick={() => handleReactionClick('rating')}
             >
               <Icon size={16} />
             </button>
@@ -144,10 +205,39 @@ const SeedConversation = () => {
         <button
           className="p-1 hover:bg-gray-100 rounded text-purple-500"
           title="Start branch"
-          onClick={() => handleClick({ type: 'branch' })}
+          onClick={() => handleReactionClick('branch')}
         >
           <MessageSquare size={16} />
         </button>
+      </div>
+    );
+  };
+
+  const MessageInteractions = ({ messageId }) => {
+    const interactions = messageInteractions[messageId] || [];
+    
+    if (interactions.length === 0) return null;
+
+    return (
+      <div className="mt-2 pt-2 border-t">
+        {interactions.map(interaction => (
+          <div key={interaction.id} className="flex items-start gap-2 mt-2">
+            <div className="p-2 bg-gray-100 rounded-lg text-sm flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <MessageCircle size={14} className="text-gray-500" />
+                <span className="text-gray-500">
+                  {interaction.type === 'question' ? 'Question' : 'Response'}
+                </span>
+              </div>
+              <div className="text-gray-600">{interaction.response.content}</div>
+              {interaction.claudeResponse && (
+                <div className="mt-2 p-2 bg-blue-50 rounded">
+                  {interaction.claudeResponse.content}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     );
   };
@@ -191,13 +281,16 @@ const SeedConversation = () => {
                   ? 'bg-white border'
                   : 'bg-blue-50'
               }`}
-              onMouseUp={() => handleTextSelection(message.id)}
             >
-              <div className="prose max-w-none">
+              <div 
+                className="prose max-w-none"
+                onMouseUp={() => handleTextSelection(message.id)}
+              >
                 {message.content.split('\n\n').map((paragraph, i) => (
                   <p key={i} className="mb-4 last:mb-0">{paragraph}</p>
                 ))}
               </div>
+              <MessageInteractions messageId={message.id} />
             </div>
           ))}
         </div>
