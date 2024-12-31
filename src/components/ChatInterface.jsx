@@ -2,6 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { X, Brain, Heart, Activity } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
+const chatPresets = {
+  'logos-guide': {
+    initialMessage: `Let's explore the concept of Logos together. Logos is a profound idea that has shaped human thought for thousands of years. Would you like to understand:
+    
+1. The historical meaning of Logos?
+2. How Logos relates to meaning and understanding?
+3. Why Logos matters in dialogue?
+
+What interests you most?`
+  },
+  'three-centers-guide': {
+    initialMessage: `The three centers - Head, Heart, and Gut - represent different ways we engage with reality and process information. Each plays a vital role in meaningful dialogue. Would you like to explore:
+
+1. How these centers work together?
+2. Why all three are necessary for deep understanding?
+3. How to recognize which center you're operating from?
+
+What would you like to understand better?`
+  }
+};
+
 const ChatInterface = ({ preset, onClose }) => {
   // Enhanced message state with full data structure
   const [conversation, setConversation] = useState({
