@@ -2,7 +2,7 @@
 export const seedConversation = {
   id: "ancient-conversation",
   title: "The Ancient Conversation: Beginning",
-  description: "A foundational dialogue exploring how consciousness itself might be the fundamental organizing principle of reality, preceding even physical phenomena.",
+  description: "A foundational conversation exploring how dialogue itself might be the fundamental organizing principle of conciousness and reality, preceding even physical phenomena.",
   created: "2024-03-30T10:00:00Z",
   updated: "2024-03-30T12:00:00Z",
   depth: 5,
