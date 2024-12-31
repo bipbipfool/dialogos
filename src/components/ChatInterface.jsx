@@ -1,40 +1,50 @@
-// src/components/ChatInterface.jsx
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
-
-const chatPresets = {
-  'logos-guide': {
-    initialMessage: `Let's explore the concept of Logos together. Logos is a profound idea that has shaped human thought for thousands of years. Would you like to understand:
-    
-1. The historical meaning of Logos?
-2. How Logos relates to meaning and understanding?
-3. Why Logos matters in dialogue?
-
-What interests you most?`
-  },
-  'three-centers-guide': {
-    initialMessage: `The three centers - Head, Heart, and Gut - represent different ways we engage with reality and process information. Each plays a vital role in meaningful dialogue. Would you like to explore:
-
-1. How these centers work together?
-2. Why all three are necessary for deep understanding?
-3. How to recognize which center you're operating from?
-
-What would you like to understand better?`
-  }
-};
+import React, { useState, useEffect } from 'react';
+import { X, Brain, Heart, Activity } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 const ChatInterface = ({ preset, onClose }) => {
-  const [messages, setMessages] = useState([
-    { text: chatPresets[preset].initialMessage, isAI: true }
-  ]);
+  // Enhanced message state with full data structure
+  const [conversation, setConversation] = useState({
+    id: uuidv4(),
+    title: preset === 'logos-guide' ? 'Exploring Logos' : 'Three Centers Dialogue',
+    summary: '',
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+    depth: 1,
+    tags: [],
+    messages: [],
+    branches: []
+  });
+
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Initialize conversation with preset message
+  useEffect(() => {
+    if (chatPresets[preset]) {
+      const initialMessage = {
+        id: uuidv4(),
+        content: chatPresets[preset].initialMessage,
+        isAI: true,
+        timestamp: new Date().toISOString(),
+        metrics: {
+          head: 4.0,
+          heart: 4.0,
+          gut: 4.0,
+          ratings: []
+        }
+      };
+      
+      setConversation(prev => ({
+        ...prev,
+        messages: [initialMessage]
+      }));
+    }
+  }, [preset]);
 
   const sendToClaude = async (message) => {
     try {
       const serverUrl = `${process.env.REACT_APP_SERVER_URL}/chat`;
-      console.log('Attempting to reach server at:', serverUrl);  // Add this line
-      console.log('Sending message to server:', { message, preset });
       const response = await fetch(serverUrl, {
         method: 'POST',
         headers: {
@@ -42,45 +52,127 @@ const ChatInterface = ({ preset, onClose }) => {
         },
         body: JSON.stringify({ 
           message,
-          preset
+          preset,
+          conversationId: conversation.id
         })
       });
 
-      console.log('Response status:', response.status);
       if (!response.ok) {
         throw new Error('Failed to get response');
       }
 
       const data = await response.json();
-      console.log('Received response:', data);
       return data.response;
     } catch (error) {
       console.error('Error in sendToClaude:', error);
       return "I'm sorry, I encountered an error. Please try again.";
     }
-};
+  };
+
+  const saveConversation = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/conversations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(conversation)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save conversation');
+      }
+
+      console.log('Conversation saved successfully');
+    } catch (error) {
+      console.error('Error saving conversation:', error);
+    }
+  };
 
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return;
 
-    const userMessage = inputValue;
-    setMessages(prev => [...prev, { text: userMessage, isAI: false }]);
+    // Create new user message
+    const userMessage = {
+      id: uuidv4(),
+      content: inputValue,
+      isAI: false,
+      timestamp: new Date().toISOString(),
+      metrics: {
+        head: 3.5,
+        heart: 3.5,
+        gut: 3.5,
+        ratings: []
+      }
+    };
+
+    // Update conversation with user message
+    setConversation(prev => ({
+      ...prev,
+      messages: [...prev.messages, userMessage],
+      updated: new Date().toISOString()
+    }));
+
     setInputValue('');
     setIsLoading(true);
 
-    // Get actual response from Claude
-    const response = await sendToClaude(userMessage);
-    setMessages(prev => [...prev, { text: response, isAI: true }]);
+    // Get Claude's response
+    const responseText = await sendToClaude(inputValue);
+    
+    // Create AI message
+    const aiMessage = {
+      id: uuidv4(),
+      content: responseText,
+      isAI: true,
+      timestamp: new Date().toISOString(),
+      metrics: {
+        head: 4.0,
+        heart: 4.0,
+        gut: 4.0,
+        ratings: []
+      }
+    };
+
+    // Update conversation with AI response
+    setConversation(prev => ({
+      ...prev,
+      messages: [...prev.messages, aiMessage],
+      updated: new Date().toISOString()
+    }));
+
     setIsLoading(false);
+    
+    // Save conversation after each exchange
+    await saveConversation();
   };
+
+  const MetricsDisplay = ({ metrics }) => (
+    <div className="flex gap-2 text-xs text-gray-500 mt-2">
+      <div className="flex items-center gap-1">
+        <Brain size={12} className="text-blue-500" />
+        <span>{metrics.head.toFixed(1)}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <Heart size={12} className="text-red-500" />
+        <span>{metrics.heart.toFixed(1)}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <Activity size={12} className="text-green-500" />
+        <span>{metrics.gut.toFixed(1)}</span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg w-full max-w-2xl h-[600px] flex flex-col">
         <div className="p-4 border-b flex justify-between items-center">
-          <h3 className="font-semibold">Exploring Understanding</h3>
+          <h3 className="font-semibold">{conversation.title}</h3>
           <button 
-            onClick={onClose}
+            onClick={() => {
+              saveConversation();
+              onClose();
+            }}
             className="p-1 hover:bg-gray-100 rounded"
           >
             <X className="w-5 h-5" />
@@ -88,16 +180,17 @@ const ChatInterface = ({ preset, onClose }) => {
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message, index) => (
+          {conversation.messages.map((message) => (
             <div 
-              key={index}
+              key={message.id}
               className={`p-3 rounded-lg max-w-[80%] ${
                 message.isAI 
                   ? 'bg-blue-50 text-blue-900' 
                   : 'bg-gray-100 text-gray-900 ml-auto'
               }`}
             >
-              {message.text}
+              <div>{message.content}</div>
+              <MetricsDisplay metrics={message.metrics} />
             </div>
           ))}
           {isLoading && (
